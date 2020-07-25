@@ -209,9 +209,7 @@ name = "example-winit-msedge-webview2"
 version = "0.1.0"
 dependencies = [
  "serde",
- "serde_json",
- "webview2",
- "winapi 0.3.9",
+ "webviewbuilder",
  "winit",
 ]
 
@@ -862,6 +860,17 @@ checksum = "a2a247d39831798b28da80598bfc8f6ea77f5be49a63069006264a3767268fc4"
 dependencies = [
  "com",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "webviewbuilder"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "webview2",
+ "winapi 0.3.9",
+ "winit",
 ]
 
 [[package]]

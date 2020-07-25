@@ -1,13 +1,11 @@
-use msedge::{ReceiveWebviewMessage, WebViewBuilder};
 use serde::{Deserialize, Serialize};
+use webviewbuilder::{ReceiveWebviewMessage, WebViewBuilder};
 use winit::event::{Event, WindowEvent};
 use winit::{
     dpi::LogicalSize,
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
-
-mod msedge;
 
 #[derive(Serialize, Deserialize, Clone, Eq, PartialEq, Debug)]
 #[serde(tag = "type")]
