@@ -46,11 +46,13 @@ impl From<OsError> for Error {
         Error::WindowBuildError(er)
     }
 }
+
 impl From<serde_json::Error> for Error {
     fn from(er: serde_json::Error) -> Self {
         Error::SerializationError(er)
     }
 }
+
 pub trait ReceiveWebviewMessage<T: 'static> {
     fn pass_to_event_loop_proxy(self: Self, proxy: &EventLoopProxy<T>);
 }
