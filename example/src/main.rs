@@ -113,9 +113,9 @@ fn main() {
 
         match event {
             Event::WindowEvent { event, window_id } => {
-                let _ = web1.handle_window_event(&event, window_id);
-                let _ = web2.handle_window_event(&event, window_id);
-                let _ = web3.handle_window_event(&event, window_id);
+                let _ = web1.handle_window_event(&event, &window_id);
+                let _ = web2.handle_window_event(&event, &window_id);
+                let _ = web3.handle_window_event(&event, &window_id);
 
                 // Close the application if any of the webviews is closed
                 if let WindowEvent::CloseRequested = event {

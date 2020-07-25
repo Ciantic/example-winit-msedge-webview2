@@ -269,15 +269,15 @@ where
     }
 
     /// Is matching window?
-    pub fn is_window(&self, window_id: WindowId) -> bool {
-        window_id == self.window.id()
+    pub fn is_window(&self, window_id: &WindowId) -> bool {
+        window_id == &self.window.id()
     }
 
     /// Handle Window Event
     ///
     /// Runs the side effects to keep the webview2 control happy, you must plug
     /// this in to the main event loop.
-    pub fn handle_window_event(&self, t: &WindowEvent, window_id: WindowId) -> Result<(), Error> {
+    pub fn handle_window_event(&self, t: &WindowEvent, window_id: &WindowId) -> Result<(), Error> {
         if !self.is_window(window_id) {
             return Ok(());
         }
