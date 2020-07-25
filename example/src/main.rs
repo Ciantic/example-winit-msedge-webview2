@@ -46,7 +46,7 @@ fn main() {
                     "#,
             )
         })
-        .build(&event_loop, &proxy)
+        .build(&event_loop)
         .unwrap();
 
     // Example of webview that has one-way communication
@@ -66,7 +66,7 @@ fn main() {
                 "#,
             )
         })
-        .build(&event_loop, &proxy)
+        .build(&event_loop)
         .unwrap();
 
     // Example of webview that has two-way communication
@@ -106,7 +106,7 @@ fn main() {
             settings.put_is_zoom_control_enabled(false)?;
             settings.put_are_dev_tools_enabled(true)
         })
-        .build(&event_loop, &proxy)
+        .build(&event_loop)
         .unwrap();
 
     event_loop.run(move |event, _, control_flow| {
