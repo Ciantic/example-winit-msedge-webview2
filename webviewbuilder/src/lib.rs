@@ -68,12 +68,13 @@ where
     msg_from_webview: PhantomData<MsgFromWebView>,
     window_builder: Option<WindowBuilder>,
     #[allow(clippy::type_complexity)]
-    settings_fn: Option<Box<dyn FnOnce(Settings) -> Result<(), webview2::Error>>>,
+    settings_fn: Option<Box<dyn FnOnce(&Settings) -> Result<(), webview2::Error>>>,
     #[allow(clippy::type_complexity)]
     webview_fn: Option<Box<dyn FnOnce(&webview2::WebView) -> Result<(), webview2::Error>>>,
 }
 
 impl<EventLoopType> WebViewBuilder<EventLoopType> {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> WebViewBuilder<EventLoopType, NoMsg, NoMsg> {
         WebViewBuilder {
             event_loop_type: PhantomData,
@@ -128,7 +129,7 @@ where
     /// Settings init closure
     pub fn settings(
         mut self,
-        settings_closure: impl FnOnce(Settings) -> Result<(), webview2::Error> + 'static,
+        settings_closure: impl FnOnce(&Settings) -> Result<(), webview2::Error> + 'static,
     ) -> Self {
         self.settings_fn = Some(Box::new(settings_closure));
         self
@@ -174,7 +175,7 @@ where
                 let webview = controller.get_webview()?;
 
                 if let Some(settings_fn) = settings {
-                    webview.get_settings().map(settings_fn)??;
+                    webview.get_settings().map(|o| settings_fn(&o))??;
                 }
 
                 unsafe {
