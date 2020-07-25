@@ -209,7 +209,7 @@ name = "example-winit-msedge-webview2"
 version = "0.1.0"
 dependencies = [
  "serde",
- "webviewbuilder",
+ "webviewbuilder_win",
  "winit",
 ]
 
@@ -863,7 +863,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "webviewbuilder"
+name = "webviewbuilder_win"
 version = "0.1.0"
 dependencies = [
  "serde",
