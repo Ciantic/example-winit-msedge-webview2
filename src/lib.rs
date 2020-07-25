@@ -16,7 +16,7 @@ use winit::event::WindowEvent;
 use winit::platform::windows::WindowExtWindows;
 use winit::{
     error::OsError,
-    event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
+    event_loop::{EventLoopProxy, EventLoopWindowTarget},
     window::{Window, WindowBuilder, WindowId},
 };
 
