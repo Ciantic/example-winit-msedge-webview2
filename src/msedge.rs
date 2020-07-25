@@ -35,6 +35,22 @@ pub enum Error {
     WindowBuildError(OsError),
 }
 
+impl From<webview2::Error> for Error {
+    fn from(er: webview2::Error) -> Self {
+        Error::WebView2Error(er)
+    }
+}
+
+impl From<OsError> for Error {
+    fn from(er: OsError) -> Self {
+        Error::WindowBuildError(er)
+    }
+}
+impl From<serde_json::Error> for Error {
+    fn from(er: serde_json::Error) -> Self {
+        Error::SerializationError(er)
+    }
+}
 pub trait ReceiveWebviewMessage<T: 'static> {
     fn pass_to_event_loop_proxy(self: Self, proxy: &EventLoopProxy<T>);
 }
@@ -134,8 +150,7 @@ where
         let window = self
             .window_builder
             .unwrap_or_else(|| WindowBuilder::new().with_title(""))
-            .build(&event_loop)
-            .map_err(Error::WindowBuildError)?;
+            .build(&event_loop)?;
         let parent_hwnd = window.hwnd() as u32;
         let window_ref = Rc::new(window);
         let webview = WebView {
@@ -148,82 +163,80 @@ where
         let controller_weak = Rc::downgrade(&webview.controller);
         let window_weak = Rc::downgrade(&window_ref);
 
-        webview2::EnvironmentBuilder::new()
-            .build(move |env| {
-                // Following is ran asynchronously somewhere after the
-                // WebViewBuilder::build() finishes, for this reason the moved
-                // variables must be passed as a weak.
-                env?.create_controller(parent_hwnd as HWND, move |host| {
-                    let controller = host?;
-                    let webview = controller.get_webview()?;
+        webview2::EnvironmentBuilder::new().build(move |env| {
+            // Following is ran asynchronously somewhere after the
+            // WebViewBuilder::build() finishes, for this reason the moved
+            // variables must be passed as a weak.
+            env?.create_controller(parent_hwnd as HWND, move |host| {
+                let controller = host?;
+                let webview = controller.get_webview()?;
 
-                    if let Some(settings_fn) = settings {
-                        webview.get_settings().map(settings_fn)??;
+                if let Some(settings_fn) = settings {
+                    webview.get_settings().map(settings_fn)??;
+                }
+
+                unsafe {
+                    let mut rect = mem::zeroed();
+                    GetClientRect(parent_hwnd as HWND, &mut rect);
+                    controller.put_bounds(rect)?;
+                }
+
+                let window_weak_ = window_weak.clone();
+                webview.add_document_title_changed(move |args| {
+                    if let Some(window_rc) = window_weak_.upgrade() {
+                        let title = args.get_document_title()?;
+                        window_rc.set_title(&title);
                     }
+                    Ok(())
+                })?;
 
-                    unsafe {
-                        let mut rect = mem::zeroed();
-                        GetClientRect(parent_hwnd as HWND, &mut rect);
-                        controller.put_bounds(rect)?;
+                let window_weak_ = window_weak.clone();
+                webview.add_content_loading(move |_, _args| {
+                    if let Some(_window_rc) = window_weak_.upgrade() {
+                        // window_rc.set_title("Loading ...");
+                        // TODO: Send message to eventloop?
                     }
+                    Ok(())
+                })?;
 
-                    let window_weak_ = window_weak.clone();
-                    webview.add_document_title_changed(move |args| {
-                        if let Some(window_rc) = window_weak_.upgrade() {
-                            let title = args.get_document_title()?;
-                            window_rc.set_title(&title);
-                        }
-                        Ok(())
-                    })?;
-
-                    let window_weak_ = window_weak.clone();
-                    webview.add_content_loading(move |_, _args| {
-                        if let Some(_window_rc) = window_weak_.upgrade() {
-                            // window_rc.set_title("Loading ...");
-                            // TODO: Send message to eventloop?
-                        }
-                        Ok(())
-                    })?;
-
-                    let window_weak_ = window_weak.clone();
-                    webview.add_window_close_requested(move |_webview| {
-                        if let Some(_window_rc) = window_weak_.upgrade() {
-                            // ...?
-                            // TODO: Send message to eventloop?
-                        }
-                        Ok(())
-                    })?;
-
-                    webview.add_web_message_received(move |_webview, args| {
-                        let message = args.try_get_web_message_as_string()?;
-                        match serde_json::from_str::<MsgFromWebView>(&message) {
-                            Ok(msg) => msg.pass_to_event_loop_proxy(&event_loop_proxy),
-                            Err(err) => {
-                                // TODO: Should we send parsing error message to event_loop_proxy?
-                                #[cfg(debug_assertions)]
-                                println!(
-                                    "Webview gave unparseable result: {:?}, error: {:?}",
-                                    message, err
-                                );
-                            }
-                        }
-
-                        Ok(())
-                    })?;
-
-                    if let Some(webview_with_fn) = webview_with {
-                        webview_with_fn(&webview)?;
+                let window_weak_ = window_weak.clone();
+                webview.add_window_close_requested(move |_webview| {
+                    if let Some(_window_rc) = window_weak_.upgrade() {
+                        // ...?
+                        // TODO: Send message to eventloop?
                     }
+                    Ok(())
+                })?;
 
-                    if let Some(controller_rc) = controller_weak.upgrade() {
-                        let mut controller_cell = controller_rc.borrow_mut();
-                        *controller_cell = Some(controller);
+                webview.add_web_message_received(move |_webview, args| {
+                    let message = args.try_get_web_message_as_string()?;
+                    match serde_json::from_str::<MsgFromWebView>(&message) {
+                        Ok(msg) => msg.pass_to_event_loop_proxy(&event_loop_proxy),
+                        Err(err) => {
+                            // TODO: Should we send parsing error message to event_loop_proxy?
+                            #[cfg(debug_assertions)]
+                            println!(
+                                "Webview gave unparseable result: {:?}, error: {:?}",
+                                message, err
+                            );
+                        }
                     }
 
                     Ok(())
-                })
+                })?;
+
+                if let Some(webview_with_fn) = webview_with {
+                    webview_with_fn(&webview)?;
+                }
+
+                if let Some(controller_rc) = controller_weak.upgrade() {
+                    let mut controller_cell = controller_rc.borrow_mut();
+                    *controller_cell = Some(controller);
+                }
+
+                Ok(())
             })
-            .map_err(Error::WebView2Error)?;
+        })?;
         Ok(webview)
     }
 }
@@ -245,11 +258,9 @@ where
     pub fn send_msg(&self, m: MsgToWebView) -> Result<(), Error> {
         let c = self.controller.borrow_mut();
         if let Some(controller) = c.as_ref() {
-            let webview = controller.get_webview().map_err(Error::WebView2Error)?;
-            let msgstr = &serde_json::to_string(&m).map_err(Error::SerializationError)?;
-            webview
-                .post_web_message_as_json(msgstr)
-                .map_err(Error::WebView2Error)?;
+            let webview = controller.get_webview()?;
+            let msgstr = &serde_json::to_string(&m)?;
+            webview.post_web_message_as_json(msgstr)?;
         }
         Ok(())
     }
@@ -274,9 +285,7 @@ where
 
         match t {
             WindowEvent::Moved(_) => {
-                controller
-                    .notify_parent_window_position_changed()
-                    .map_err(Error::WebView2Error)?;
+                controller.notify_parent_window_position_changed()?;
             }
 
             WindowEvent::Resized(new_size) => {
@@ -286,7 +295,7 @@ where
                     right: new_size.width as i32,
                     bottom: new_size.height as i32,
                 };
-                controller.put_bounds(r).map_err(Error::WebView2Error)?;
+                controller.put_bounds(r)?;
             }
             _ => (),
         };

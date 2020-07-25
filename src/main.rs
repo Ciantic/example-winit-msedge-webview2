@@ -2,7 +2,7 @@ use msedge::{ReceiveWebviewMessage, WebViewBuilder};
 use serde::{Deserialize, Serialize};
 use winit::event::{Event, WindowEvent};
 use winit::{
-    dpi::{LogicalSize, Size},
+    dpi::LogicalSize,
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
