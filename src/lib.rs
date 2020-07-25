@@ -16,7 +16,7 @@ use winit::event::WindowEvent;
 use winit::platform::windows::WindowExtWindows;
 use winit::{
     error::OsError,
-    event_loop::{EventLoop, EventLoopProxy},
+    event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
     window::{Window, WindowBuilder, WindowId},
 };
 
@@ -147,9 +147,9 @@ where
     /// Tries to build the webview
     pub fn build(
         self,
-        event_loop: &EventLoop<EventLoopType>,
+        event_loop: &EventLoopWindowTarget<EventLoopType>,
+        event_loop_proxy: &EventLoopProxy<EventLoopType>,
     ) -> Result<WebView<MsgToWebView>, Error> {
-        let event_loop_proxy = event_loop.create_proxy();
         let window = self
             .window_builder
             .unwrap_or_else(|| WindowBuilder::new().with_title(""))
@@ -165,6 +165,7 @@ where
         let webview_with = self.webview_fn;
         let controller_weak = Rc::downgrade(&webview.controller);
         let window_weak = Rc::downgrade(&window_ref);
+        let event_loop_proxy = event_loop_proxy.clone();
 
         webview2::EnvironmentBuilder::new().build(move |env| {
             // Following is ran asynchronously somewhere after the
