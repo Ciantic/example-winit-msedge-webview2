@@ -1,4 +1,4 @@
-# MSEdge Webview2 example with Rust
+# MSEdge WebView2 example with Rust
 
 This mainly just uses the [Microsoft's webview2 Rust library wrapper created by
 Yin Guanhao](https://github.com/sopium/webview2).
