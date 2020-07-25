@@ -102,7 +102,7 @@ where
         }
     }
 
-    pub fn window(mut self, window_builder: WindowBuilder) -> Self {
+    pub fn window_builder(mut self, window_builder: WindowBuilder) -> Self {
         self.window_builder = Some(window_builder);
         self
     }

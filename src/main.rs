@@ -95,7 +95,7 @@ fn main() {
             )
         })
         // Optionally give window builder
-        .window(
+        .window_builder(
             WindowBuilder::new()
                 .with_resizable(false)
                 .with_inner_size(LogicalSize::new(600, 600)),
