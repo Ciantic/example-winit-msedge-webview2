@@ -11,6 +11,7 @@ use winit::{
 #[serde(tag = "type")]
 enum MsgFromWebView {
     HelloToServer,
+    OpenOptionalWindow,
 }
 
 impl ReceiveWebviewMessage<AppEvent> for MsgFromWebView {
@@ -49,9 +50,23 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
+    // Example of webview that exist only optionally (like preference dialog)
+    let mut webopt = WebViewBuilder::new()
+        .webview_init(|w| {
+            w.navigate_to_string(
+                r#"
+                    <html>
+                    <title>Optional Window</title>
+                    <body>
+                    <h2>This exists only while it's open</h2>
+                    "#,
+            )
+        })
+        .build_optional(&event_loop);
+
     // Example of webview that has one-way communication
     let web2 = WebViewBuilder::new()
-        .msg_to_webview::<MsgToWebView>()
+        .msg_from_webview::<MsgFromWebView>()
         .webview_init(|w| {
             w.navigate_to_string(
                 r#"
@@ -59,10 +74,7 @@ fn main() {
                     <title>Foo</title>
                     <body>
                     <h2>WebView2 - One sided communication</h2>
-                    <script>
-                        // Send to server some garbled stuff, does not parse
-                        window.chrome.webview.postMessage('Garbled!'); 
-                    </script>
+                    <button type="button" onclick='window.chrome.webview.postMessage(JSON.stringify({"type": "OpenOptionalWindow"}));'>Open Optional Window</button>
                 "#,
             )
         })
@@ -109,7 +121,7 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
-    event_loop.run(move |event, _, control_flow| {
+    event_loop.run(move |event, event_loop_target, control_flow| {
         *control_flow = ControlFlow::Wait;
 
         match event {
@@ -117,19 +129,16 @@ fn main() {
                 let _ = web1.handle_window_event(&event, &window_id);
                 let _ = web2.handle_window_event(&event, &window_id);
                 let _ = web3.handle_window_event(&event, &window_id);
+                let _ = webopt.handle_window_event(&event, &window_id);
 
                 // Close the application if any of the webviews is closed
-                if let WindowEvent::CloseRequested = event {
-                    *control_flow = ControlFlow::Exit
-                }
-            }
-            Event::DeviceEvent {
-                event: winit::event::DeviceEvent::Key(input),
-                ..
-            } => {
-                if input.virtual_keycode == Some(winit::event::VirtualKeyCode::S) {
-                    let _ = web3.send_msg(MsgToWebView::HelloToWebview);
-                } else if input.virtual_keycode == Some(winit::event::VirtualKeyCode::H) {
+                if web1.is_window(&window_id)
+                    || web2.is_window(&window_id)
+                    || web3.is_window(&window_id)
+                {
+                    if let WindowEvent::CloseRequested = event {
+                        *control_flow = ControlFlow::Exit
+                    }
                 }
             }
             Event::UserEvent(e) => match e {
@@ -137,6 +146,10 @@ fn main() {
                     MsgFromWebView::HelloToServer => {
                         println!("Got Hello There! Sending one back!");
                         let _ = web3.send_msg(MsgToWebView::HelloToWebview);
+                    }
+                    MsgFromWebView::OpenOptionalWindow => {
+                        println!("Open the optional window!");
+                        webopt.show(&event_loop_target, &proxy)
                     }
                 },
             },
