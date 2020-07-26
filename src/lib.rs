@@ -270,12 +270,12 @@ where
 
                     match serde_json::from_str::<MsgFromWebView>(&message) {
                         Ok(msg) => msg.pass_to_event_loop_proxy(&event_loop_proxy),
-                        Err(err) => {
+                        Err(_err) => {
                             // TODO: Should we send parsing error message to event_loop_proxy?
                             #[cfg(debug_assertions)]
                             println!(
                                 "Webview gave unparseable result: {:?}, error: {:?}",
-                                message, err
+                                message, _err
                             );
                         }
                     }

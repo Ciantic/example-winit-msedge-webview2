@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use webviewbuilder_win::{ReceiveWebviewMessage, ShowWebview, WebViewBuilder};
+use webviewbuilder_win::{ReceiveWebviewMessage, WebViewBuilder};
 use winit::event::{Event, WindowEvent};
 use winit::{
     dpi::LogicalSize,
