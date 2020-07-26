@@ -10,7 +10,7 @@ use std::{fmt::Debug, marker::PhantomData, rc::Rc};
 use webview2::Settings;
 use winapi::{
     shared::windef::{HWND, RECT},
-    um::winuser::{GetClientRect, SetFocus},
+    um::winuser::{GetClientRect, SetForegroundWindow},
 };
 use winit::event::WindowEvent;
 use winit::platform::windows::WindowExtWindows;
@@ -414,8 +414,10 @@ where
         let mut value = self.instance.borrow_mut();
         match value.as_ref() {
             Some(instance) => {
-                // How come winit does not have setting focus action?
-                unsafe { SetFocus(instance.window.hwnd() as HWND) };
+                // How come winit does not have setting focus action? I noticed
+                // that winapi call SetFocus does not work always, but instead
+                // SetForegroundWindow did work.
+                unsafe { SetForegroundWindow(instance.window.hwnd() as HWND) };
             }
             None => {
                 let builder = self.builder.clone();
