@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use webviewbuilder_win::{ReceiveWebviewMessage, WebViewBuilder};
+use webviewbuilder_win::{ReceiveWebviewMessage, ShowWebview, WebViewBuilder};
 use winit::event::{Event, WindowEvent};
 use winit::{
     dpi::LogicalSize,
@@ -55,7 +55,7 @@ fn main() {
         .webview_init(|w| {
             w.navigate_to_string(
                 r#"
-                    <html>
+                    <html style="background: green;">
                     <title>Optional Window</title>
                     <body>
                     <h2>This exists only while it's open</h2>

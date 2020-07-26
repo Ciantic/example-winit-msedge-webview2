@@ -23,6 +23,13 @@ use winit::{
 #[derive(Copy, Clone, PartialEq, Serialize, Deserialize, Debug)]
 pub enum NoMsg {}
 
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum ShowWebview {
+    Immediately,
+    OnNavigationCompleted,
+    OnContentLoading,
+}
+
 impl<T: 'static> ReceiveWebviewMessage<T> for NoMsg {
     fn pass_to_event_loop_proxy(self: Self, _: &EventLoopProxy<T>) {}
 }
@@ -69,6 +76,7 @@ where
     msg_to_webview: PhantomData<MsgToWebView>,
     msg_from_webview: PhantomData<MsgFromWebView>,
     window_builder: Option<WindowBuilder>,
+    show_on: ShowWebview,
     #[allow(clippy::type_complexity)]
     // settings_fn: Option<Box<dyn Fn(&Settings) -> Result<(), webview2::Error>>>,
     settings_fn: Option<fn(&Settings) -> Result<(), webview2::Error>>,
@@ -88,6 +96,7 @@ where
             msg_to_webview: PhantomData,
             msg_from_webview: PhantomData,
             window_builder: None,
+            show_on: ShowWebview::OnNavigationCompleted,
             webview_fn: None,
             settings_fn: None,
         }
@@ -111,6 +120,7 @@ where
             msg_to_webview: PhantomData,
             msg_from_webview: PhantomData,
             window_builder: self.window_builder,
+            show_on: self.show_on,
             webview_fn: self.webview_fn,
             settings_fn: self.settings_fn,
         }
@@ -123,6 +133,7 @@ where
             msg_to_webview: PhantomData,
             msg_from_webview: PhantomData,
             window_builder: self.window_builder,
+            show_on: self.show_on,
             webview_fn: self.webview_fn,
             settings_fn: self.settings_fn,
         }
@@ -139,6 +150,12 @@ where
         settings_closure: fn(&Settings) -> Result<(), webview2::Error>,
     ) -> Self {
         self.settings_fn = Some(settings_closure);
+        self
+    }
+
+    /// Delay the showing until the webview controller responds
+    pub fn show_on(mut self, show_on: ShowWebview) -> Self {
+        self.show_on = show_on;
         self
     }
 
@@ -170,6 +187,7 @@ where
             .window_builder
             .clone()
             .unwrap_or_else(|| WindowBuilder::new().with_title(""))
+            .with_visible(self.show_on == ShowWebview::Immediately)
             .build(&event_loop)?;
         let parent_hwnd = window.hwnd() as u32;
         let window_ref = Rc::new(window);
@@ -183,6 +201,7 @@ where
         let controller_weak = Rc::downgrade(&webview.controller);
         let window_weak = Rc::downgrade(&window_ref);
         let event_loop_proxy = event_loop_proxy.clone();
+        let show_on = self.show_on;
 
         webview2::EnvironmentBuilder::new().build(move |env| {
             // Following is ran asynchronously somewhere after the
@@ -207,28 +226,45 @@ where
                     if let Some(window_rc) = window_weak_.upgrade() {
                         let title = args.get_document_title()?;
                         window_rc.set_title(&title);
+                        window_rc.request_redraw();
                     }
                     Ok(())
                 })?;
 
+                // Show the window after event trigger
                 let window_weak_ = window_weak.clone();
-                webview.add_content_loading(move |_, _args| {
+                let controller_weak_ = controller_weak.clone();
+                let do_it = move || {
+                    if let Some(controller_rc) = controller_weak_.upgrade() {
+                        if let Some(controller) = controller_rc.borrow().as_ref() {
+                            controller.put_is_visible(true)?;
+                        }
+                    }
                     if let Some(_window_rc) = window_weak_.upgrade() {
-                        // window_rc.set_title("Loading ...");
-                        // TODO: Send message to eventloop?
+                        _window_rc.set_visible(true);
                     }
                     Ok(())
-                })?;
+                };
+                match show_on {
+                    ShowWebview::Immediately => {}
+                    ShowWebview::OnNavigationCompleted => {
+                        webview.add_navigation_completed(move |_, _args| do_it())?;
+                    }
+                    ShowWebview::OnContentLoading => {
+                        webview.add_content_loading(move |_, _args| do_it())?;
+                    }
+                }
 
+                // Webview requested a close?
                 let window_weak_ = window_weak.clone();
                 webview.add_window_close_requested(move |_webview| {
                     if let Some(_window_rc) = window_weak_.upgrade() {
-                        // ...?
                         // TODO: Send message to eventloop?
                     }
                     Ok(())
                 })?;
 
+                // Message passing
                 webview.add_web_message_received(move |_webview, args| {
                     let message = args.try_get_web_message_as_string()?;
 
