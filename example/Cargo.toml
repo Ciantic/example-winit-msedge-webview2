@@ -8,4 +8,4 @@ publish = false
 [dependencies]
 webviewbuilder_win = { version = "0.1.0", path = "../" }
 serde = { version = "1.0.114", features = ["derive"] }
-winit = { version = "0.22.2" }
+winit = { version = "0.24" }
